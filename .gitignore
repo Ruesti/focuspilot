@@ -3,10 +3,14 @@
 .packages
 .pub-cache/
 build/
-flutter_*.png
+.flutter-plugins
+.flutter-plugins-dependencies
 generated_plugin_registrant.dart
 
-# IDEs
+# Flutter spezifisch
+flutter_export_environment.sh
+
+# IntelliJ/VS Code/Android Studio
 .idea/
 .vscode/
 *.iml
@@ -22,3 +26,36 @@ Thumbs.db
 *.swp
 *.lock
 
+# Platform spezifisch
+android/local.properties
+android/key.properties
+ios/Pods/
+ios/Podfile.lock
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# Windows
+windows/flutter/
+windows/runner/Debug/
+windows/runner/Release/
+windows/runner/GeneratedPluginRegistrant.*
+
+# Linux
+linux/flutter/
+linux/runner/
+linux/Makefile
+
+# MacOS
+macos/Flutter/
+macos/Pods/
+macos/Podfile.lock
+
+# Web
+web/.dart_tool/
+web/.flutter-plugins
+
+# Supabase (lokale Configs)
+supabase/.temp/
+supabase/functions/.temp/
