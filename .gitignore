@@ -1,21 +1,24 @@
-# Flutter / Dart
+# Flutter/Dart/Pub
 .dart_tool/
 .packages
 .pub-cache/
 build/
-.flutter-plugins
-.flutter-plugins-dependencies
+flutter_*.png
+generated_plugin_registrant.dart
 
-# Plattform-Builds
-android/.gradle/
-android/app/build/
-ios/Pods/
-ios/.symlinks/
-macos/Pods/
-
-# IDE
+# IDEs
 .idea/
 .vscode/
-
-# Sonstiges
 *.iml
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Andere temporäre Dateien
+*.swp
+*.lock
+
