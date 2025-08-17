@@ -1,0 +1,40 @@
+# Standardmäßig alles als Text behandeln und LF erzwingen
+* text=auto eol=lf
+
+# Dart/Flutter Dateien
+*.dart text diff=dart
+*.yaml text
+*.json text
+*.md text
+*.html text
+*.css text
+*.js text
+
+# Plattform-spezifische Dateien
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Konfigurationsdateien
+*.gradle text
+*.properties text
+*.xml text
+*.gitignore text
+*.gitattributes text
+
+# Binärdateien (nicht konvertieren!)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.mp3 binary
+*.mp4 binary
+*.mov binary
+
+# Supabase Edge Functions (Deno/TS/JS)
+*.ts text
+*.tsx text
+*.deno text
