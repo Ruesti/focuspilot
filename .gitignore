@@ -59,3 +59,8 @@ web/.flutter-plugins
 # Supabase (lokale Configs)
 supabase/.temp/
 supabase/functions/.temp/
+
+# Env files (nicht ins Repo!)
+.env
+*.env
+
