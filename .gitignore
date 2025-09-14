@@ -64,6 +64,29 @@ supabase/functions/**/.tsbuildinfo
 
 
 # Env files (nicht ins Repo!)
+
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub/
+build/
+
+# Platform ephemeral
+ios/Pods/
+android/.gradle/
+android/app/build/
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Backups & Testprojekte
+hello_xcb/
+linux_backup_*/
+
+# IDE
+.idea/
+.vscode/
+
 .env
 *.env
 
