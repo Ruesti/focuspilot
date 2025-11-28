@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../state/chat_providers.dart';
+import '../repositories/chat_repository.dart';
 import '../models/chat_models.dart';
+import '../services/gpt_service.dart';
 
-class GPTChatPage extends ConsumerStatefulWidget {
-  const GPTChatPage({super.key});
+class GeneralChatPage extends StatefulWidget {
+  const GeneralChatPage({super.key});
 
   @override
-  ConsumerState<GPTChatPage> createState() => _GPTChatPageState();
+  State<GeneralChatPage> createState() => _GeneralChatPageState();
 }
 
-class _GPTChatPageState extends ConsumerState<GPTChatPage> {
+class _GeneralChatPageState extends State<GeneralChatPage> {
+  late final ChatRepository _repo;
+
+  ChatThread? _thread;
+  List<ChatMessage> _messages = [];
+  bool _isLoading = true;
+  bool _isSending = false;
+  String? _error;
+
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -19,11 +28,41 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
   int _lastMessageCount = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _repo = ChatRepository(Supabase.instance.client);
+    _initChat();
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
     _inputFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _initChat() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final thread = await _repo.getOrCreateGeneralInboxThread();
+      final msgs = await _repo.loadMessages(thread.id);
+      setState(() {
+        _thread = thread;
+        _messages = msgs;
+        _isLoading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   void _scrollToBottom() {
@@ -39,33 +78,106 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
 
   Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _thread == null || _isSending) return;
 
-    final notifier = ref.read(chatProvider.notifier);
+    final thread = _thread!;
+    setState(() {
+      _isSending = true;
+      _error = null;
+    });
 
     _controller.clear();
-    await notifier.sendUserMessage(text);
+
+    // User-Message speichern
+    final userMsg = await _repo.addMessage(
+      threadId: thread.id,
+      role: 'user',
+      content: text,
+    );
+
+    setState(() {
+      _messages = [..._messages, userMsg];
+    });
+    _scrollToBottom();
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      final userName = user?.userMetadata?['display_name'] ??
+          user?.userMetadata?['name'] ??
+          'Du';
+
+      final fullPrompt =
+          '$userName schreibt im allgemeinen Ideen-Chat:\n$text\n\n'
+          'Die Antwort soll in Du-Form, ruhig, freundlich und konkret sein. '
+          'Hilf, Gedanken zu sortieren und mögliche nächste Schritte zu sehen, '
+          'ohne Druck aufzubauen.';
+
+      final replyText = await GPTService.sendPrompt(fullPrompt);
+
+      final assistantMsg = await _repo.addMessage(
+        threadId: thread.id,
+        role: 'assistant',
+        content: replyText,
+      );
+
+      setState(() {
+        _messages = [..._messages, assistantMsg];
+        _isSending = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      final errorMsg = await _repo.addMessage(
+        threadId: thread.id,
+        role: 'assistant',
+        content: 'Fehler: ${e.toString()}',
+        isError: true,
+      );
+
+      setState(() {
+        _messages = [..._messages, errorMsg];
+        _isSending = false;
+        _error = e.toString();
+      });
+      _scrollToBottom();
+    }
+  }
+
+  void _onConvertToProject() {
+    // Hier später: aus diesem Chat ein Projekt anlegen oder zuweisen.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          '„In Projekt umwandeln“ ist noch nicht implementiert – Hook ist vorbereitet.',
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(chatProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    final currentCount = chatState.messages.length;
+    final hasMessages = _messages.isNotEmpty;
+    final title = _thread?.title ?? 'Allgemeiner Chat';
+
+    final currentCount = _messages.length;
     if (currentCount != _lastMessageCount) {
       _lastMessageCount = currentCount;
       _scrollToBottom();
     }
 
-    final hasMessages = chatState.messages.isNotEmpty;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(chatState.thread?.title ?? 'GPT-Coach'),
-        centerTitle: false,
+        title: Text(title),
+        actions: [
+          IconButton(
+            tooltip: 'Später: In Projekt umwandeln / zu Projekt hinzufügen',
+            icon: const Icon(Icons.redo),
+            onPressed: _onConvertToProject,
+          ),
+        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -85,7 +197,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                   : null,
               child: Column(
                 children: [
-                  if (chatState.error != null)
+                  if (_error != null)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -94,7 +206,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                       ),
                       color: colorScheme.errorContainer,
                       child: Text(
-                        chatState.error!,
+                        _error!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onErrorContainer,
                         ),
@@ -108,14 +220,14 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                           : colorScheme.surfaceVariant.withOpacity(0.3),
                       child: Builder(
                         builder: (context) {
-                          if (chatState.isLoading) {
+                          if (_isLoading) {
                             return const Center(
                               child: CircularProgressIndicator(),
                             );
                           }
 
-                          if (!hasMessages && !chatState.isSending) {
-                            return _ChatEmptyState(
+                          if (!hasMessages && !_isSending) {
+                            return _GeneralChatEmptyState(
                               onStartNewChat: () {
                                 FocusScope.of(context)
                                     .requestFocus(_inputFocusNode);
@@ -129,17 +241,14 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                               horizontal: 12,
                               vertical: 16,
                             ),
-                            itemCount: chatState.messages.length +
-                                (chatState.isSending ? 1 : 0),
+                            itemCount:
+                                _messages.length + (_isSending ? 1 : 0),
                             itemBuilder: (context, index) {
-                              final messages = chatState.messages;
-
-                              if (chatState.isSending &&
-                                  index == messages.length) {
+                              if (_isSending && index == _messages.length) {
                                 return const _TypingIndicator();
                               }
 
-                              final ChatMessage m = messages[index];
+                              final ChatMessage m = _messages[index];
                               final bool isUser = m.role == 'user';
                               final bool isError = m.isError;
 
@@ -182,13 +291,13 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                                   minLines: 1,
                                   textInputAction: TextInputAction.newline,
                                   onSubmitted: (_) {
-                                    if (!chatState.isSending) {
+                                    if (!_isSending) {
                                       _send();
                                     }
                                   },
                                   decoration: InputDecoration(
                                     hintText:
-                                        'Frag deinen GPT-Coach oder erzähl, woran du arbeitest …',
+                                        'Schreib hier alles, was gerade anliegt – Ideen, Fragen, ToDos …',
                                     filled: true,
                                     fillColor: isDark
                                         ? colorScheme.surfaceVariant
@@ -210,8 +319,8 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                           ),
                           const SizedBox(width: 8),
                           IconButton.filled(
-                            onPressed: chatState.isSending ? null : _send,
-                            icon: chatState.isSending
+                            onPressed: _isSending ? null : _send,
+                            icon: _isSending
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,
@@ -235,10 +344,10 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
   }
 }
 
-class _ChatEmptyState extends StatelessWidget {
+class _GeneralChatEmptyState extends StatelessWidget {
   final VoidCallback onStartNewChat;
 
-  const _ChatEmptyState({required this.onStartNewChat});
+  const _GeneralChatEmptyState({required this.onStartNewChat});
 
   @override
   Widget build(BuildContext context) {
@@ -252,13 +361,13 @@ class _ChatEmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.chat_bubble_outline,
+              Icons.lightbulb_outline,
               size: 64,
               color: colorScheme.primary,
             ),
             const SizedBox(height: 16),
             Text(
-              'Willkommen beim GPT-Coach',
+              'Allgemeiner Chat',
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -266,7 +375,7 @@ class _ChatEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Hier kannst du deinen Kopf sortieren, Projekte planen und dich beim Fokussieren unterstützen lassen.',
+              'Nutze diesen Raum, um erstmal alles rauszulassen – bevor daraus vielleicht ein echtes Projekt wird.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.4,
@@ -276,15 +385,7 @@ class _ChatEmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onStartNewChat,
               icon: const Icon(Icons.edit),
-              label: const Text('Neuen Chat beginnen'),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Schreib einfach los – zum Beispiel, woran du gerade arbeitest oder was dich blockiert.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
-              ),
+              label: const Text('Loslegen'),
             ),
           ],
         ),
@@ -384,12 +485,12 @@ class _TypingIndicator extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _Dot(color: colorScheme.primary),
-            const SizedBox(width: 4),
-            _Dot(color: colorScheme.primary),
-            const SizedBox(width: 4),
-            _Dot(color: colorScheme.primary),
+          children: const [
+            _Dot(),
+            SizedBox(width: 4),
+            _Dot(),
+            SizedBox(width: 4),
+            _Dot(),
           ],
         ),
       ),
@@ -398,9 +499,7 @@ class _TypingIndicator extends StatelessWidget {
 }
 
 class _Dot extends StatefulWidget {
-  final Color color;
-
-  const _Dot({required this.color});
+  const _Dot();
 
   @override
   State<_Dot> createState() => _DotState();
@@ -434,13 +533,15 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ScaleTransition(
       scale: _scale,
       child: Container(
         width: 6,
         height: 6,
         decoration: BoxDecoration(
-          color: widget.color,
+          color: colorScheme.primary,
           shape: BoxShape.circle,
         ),
       ),

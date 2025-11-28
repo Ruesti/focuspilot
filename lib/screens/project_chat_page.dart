@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../state/chat_providers.dart';
+import '../state/project_chat_providers.dart';
 import '../models/chat_models.dart';
 
-class GPTChatPage extends ConsumerStatefulWidget {
-  const GPTChatPage({super.key});
+class ProjectChatPage extends ConsumerStatefulWidget {
+  final String projectId;
+
+  const ProjectChatPage({
+    super.key,
+    required this.projectId,
+  });
 
   @override
-  ConsumerState<GPTChatPage> createState() => _GPTChatPageState();
+  ConsumerState<ProjectChatPage> createState() => _ProjectChatPageState();
 }
 
-class _GPTChatPageState extends ConsumerState<GPTChatPage> {
+class _ProjectChatPageState extends ConsumerState<ProjectChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -41,15 +46,16 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final notifier = ref.read(chatProvider.notifier);
+    final notifier =
+        ref.read(projectChatProvider(widget.projectId).notifier);
 
     _controller.clear();
-    await notifier.sendUserMessage(text);
+    await notifier.sendProjectMessage(text);
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(chatProvider);
+    final chatState = ref.watch(projectChatProvider(widget.projectId));
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
@@ -61,10 +67,11 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
     }
 
     final hasMessages = chatState.messages.isNotEmpty;
+    final title = chatState.thread?.title ?? 'Projekt-Chat';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(chatState.thread?.title ?? 'GPT-Coach'),
+        title: Text(title),
         centerTitle: false,
       ),
       body: LayoutBuilder(
@@ -115,7 +122,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                           }
 
                           if (!hasMessages && !chatState.isSending) {
-                            return _ChatEmptyState(
+                            return _ProjectChatEmptyState(
                               onStartNewChat: () {
                                 FocusScope.of(context)
                                     .requestFocus(_inputFocusNode);
@@ -188,7 +195,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                                   },
                                   decoration: InputDecoration(
                                     hintText:
-                                        'Frag deinen GPT-Coach oder erzähl, woran du arbeitest …',
+                                        'Schreib hier alles zum Projekt: nächste Schritte, Probleme, Ideen …',
                                     filled: true,
                                     fillColor: isDark
                                         ? colorScheme.surfaceVariant
@@ -235,10 +242,10 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
   }
 }
 
-class _ChatEmptyState extends StatelessWidget {
+class _ProjectChatEmptyState extends StatelessWidget {
   final VoidCallback onStartNewChat;
 
-  const _ChatEmptyState({required this.onStartNewChat});
+  const _ProjectChatEmptyState({required this.onStartNewChat});
 
   @override
   Widget build(BuildContext context) {
@@ -252,13 +259,13 @@ class _ChatEmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.chat_bubble_outline,
+              Icons.developer_board,
               size: 64,
               color: colorScheme.primary,
             ),
             const SizedBox(height: 16),
             Text(
-              'Willkommen beim GPT-Coach',
+              'Projekt-Chat',
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -266,7 +273,7 @@ class _ChatEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Hier kannst du deinen Kopf sortieren, Projekte planen und dich beim Fokussieren unterstützen lassen.',
+              'Nutze diesen Bereich, um speziell zu diesem Projekt Fragen zu stellen, Entscheidungen festzuhalten und nächste Schritte zu klären.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.4,
@@ -276,15 +283,7 @@ class _ChatEmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onStartNewChat,
               icon: const Icon(Icons.edit),
-              label: const Text('Neuen Chat beginnen'),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Schreib einfach los – zum Beispiel, woran du gerade arbeitest oder was dich blockiert.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
-              ),
+              label: const Text('Projekt-Chat starten'),
             ),
           ],
         ),

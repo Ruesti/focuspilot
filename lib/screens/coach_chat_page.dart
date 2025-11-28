@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../state/chat_providers.dart';
+import '../state/coach_chat_providers.dart';
 import '../models/chat_models.dart';
 
-class GPTChatPage extends ConsumerStatefulWidget {
-  const GPTChatPage({super.key});
+class CoachChatPage extends ConsumerStatefulWidget {
+  const CoachChatPage({super.key});
 
   @override
-  ConsumerState<GPTChatPage> createState() => _GPTChatPageState();
+  ConsumerState<CoachChatPage> createState() => _CoachChatPageState();
 }
 
-class _GPTChatPageState extends ConsumerState<GPTChatPage> {
+class _CoachChatPageState extends ConsumerState<CoachChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -41,15 +41,15 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final notifier = ref.read(chatProvider.notifier);
+    final notifier = ref.read(coachChatProvider.notifier);
 
     _controller.clear();
-    await notifier.sendUserMessage(text);
+    await notifier.sendCoachMessage(text);
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(chatProvider);
+    final chatState = ref.watch(coachChatProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
@@ -64,7 +64,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(chatState.thread?.title ?? 'GPT-Coach'),
+        title: const Text('GPT-Coach'),
         centerTitle: false,
       ),
       body: LayoutBuilder(
@@ -101,11 +101,15 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                       ),
                     ),
 
+                  // Begrüßungsbereich, wenn noch kein Verlauf da ist
+                  if (!hasMessages && !chatState.isLoading)
+                    const _CoachIntroBanner(),
+
                   Expanded(
                     child: Container(
                       color: isDark
                           ? colorScheme.surface
-                          : colorScheme.surfaceVariant.withOpacity(0.3),
+                          : colorScheme.surfaceVariant.withOpacity(0.2),
                       child: Builder(
                         builder: (context) {
                           if (chatState.isLoading) {
@@ -115,12 +119,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                           }
 
                           if (!hasMessages && !chatState.isSending) {
-                            return _ChatEmptyState(
-                              onStartNewChat: () {
-                                FocusScope.of(context)
-                                    .requestFocus(_inputFocusNode);
-                              },
-                            );
+                            return const SizedBox.shrink();
                           }
 
                           return ListView.builder(
@@ -188,7 +187,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
                                   },
                                   decoration: InputDecoration(
                                     hintText:
-                                        'Frag deinen GPT-Coach oder erzähl, woran du arbeitest …',
+                                        'Was geht dir gerade durch den Kopf?',
                                     filled: true,
                                     fillColor: isDark
                                         ? colorScheme.surfaceVariant
@@ -235,58 +234,43 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
   }
 }
 
-class _ChatEmptyState extends StatelessWidget {
-  final VoidCallback onStartNewChat;
-
-  const _ChatEmptyState({required this.onStartNewChat});
+class _CoachIntroBanner extends StatelessWidget {
+  const _CoachIntroBanner();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64,
-              color: colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Willkommen beim GPT-Coach',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Card(
+        color: colorScheme.surfaceVariant.withOpacity(0.7),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Willkommen beim GPT-Coach 👋',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Hier kannst du deinen Kopf sortieren, Projekte planen und dich beim Fokussieren unterstützen lassen.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.4,
+              const SizedBox(height: 6),
+              Text(
+                'Hier geht es nur um dich: Fokus, Überforderung, Prioritäten, schlechtes Gewissen, ADHS-Chaos. Schreib einfach los – der Verlauf bleibt zusammenhängend.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  height: 1.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: onStartNewChat,
-              icon: const Icon(Icons.edit),
-              label: const Text('Neuen Chat beginnen'),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Schreib einfach los – zum Beispiel, woran du gerade arbeitest oder was dich blockiert.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
