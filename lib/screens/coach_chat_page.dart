@@ -109,7 +109,7 @@ class _CoachChatPageState extends ConsumerState<CoachChatPage> {
                     child: Container(
                       color: isDark
                           ? colorScheme.surface
-                          : colorScheme.surfaceVariant.withOpacity(0.2),
+                          : colorScheme.surfaceContainerHighest.withOpacity(0.2),
                       child: Builder(
                         builder: (context) {
                           if (chatState.isLoading) {
@@ -190,8 +190,8 @@ class _CoachChatPageState extends ConsumerState<CoachChatPage> {
                                         'Was geht dir gerade durch den Kopf?',
                                     filled: true,
                                     fillColor: isDark
-                                        ? colorScheme.surfaceVariant
-                                        : colorScheme.surfaceVariant
+                                        ? colorScheme.surfaceContainerHighest
+                                        : colorScheme.surfaceContainerHighest
                                             .withOpacity(0.9),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
@@ -245,7 +245,7 @@ class _CoachIntroBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Card(
-        color: colorScheme.surfaceVariant.withOpacity(0.7),
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.7),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -308,8 +308,8 @@ class _ChatBubble extends StatelessWidget {
       textColor = colorScheme.onPrimaryContainer;
     } else {
       bubbleColor = isDark
-          ? colorScheme.surfaceVariant.withOpacity(0.8)
-          : colorScheme.surfaceVariant;
+          ? colorScheme.surfaceContainerHighest.withOpacity(0.8)
+          : colorScheme.surfaceContainerHighest;
       textColor = colorScheme.onSurface;
     }
 
@@ -358,7 +358,7 @@ class _TypingIndicator extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.8),
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.8),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(16),
             topRight: Radius.circular(16),

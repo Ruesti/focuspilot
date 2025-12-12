@@ -233,7 +233,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Card(
               elevation: 0,
-              color: colorScheme.surfaceVariant.withOpacity(0.6),
+              color: colorScheme.surfaceContainerHighest.withOpacity(0.6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),

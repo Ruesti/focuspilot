@@ -51,7 +51,7 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
     final currentCount = chatState.messages.length;
@@ -64,172 +64,269 @@ class _GPTChatPageState extends ConsumerState<GPTChatPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(chatState.thread?.title ?? 'GPT-Coach'),
+        title: Text(chatState.thread?.title ?? 'GPT-Chat'),
         centerTitle: false,
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool isWide = constraints.maxWidth > 800;
-          final double maxWidth = isWide ? 900 : constraints.maxWidth;
+      body: Column(
+        children: [
+          if (chatState.error != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: cs.errorContainer,
+              child: Text(
+                chatState.error!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onErrorContainer,
+                ),
+              ),
+            ),
 
-          return Center(
+          Expanded(
             child: Container(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              decoration: isWide
-                  ? BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withOpacity(0.5),
-                      ),
-                    )
-                  : null,
-              child: Column(
+              color: isDark
+                  ? cs.surface
+                  : cs.surfaceContainerHighest.withOpacity(0.25),
+              child: Builder(
+                builder: (context) {
+                  if (chatState.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!hasMessages && !chatState.isSending) {
+                    return _ChatEmptyState(
+                      onStartNewChat: () {
+                        FocusScope.of(context).requestFocus(_inputFocusNode);
+                      },
+                    );
+                  }
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    itemCount:
+                        chatState.messages.length + (chatState.isSending ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      final messages = chatState.messages;
+
+                      if (chatState.isSending && index == messages.length) {
+                        return const _ChatGPTStyleRowTyping();
+                      }
+
+                      final ChatMessage m = messages[index];
+                      final bool isUser = m.role == 'user';
+                      final bool isError = m.isError;
+
+                      return _ChatGPTStyleRow(
+                        text: m.content,
+                        isUser: isUser,
+                        isError: isError,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                border: Border(
+                  top: BorderSide(color: cs.outlineVariant.withOpacity(0.7)),
+                ),
+              ),
+              child: Row(
                 children: [
-                  if (chatState.error != null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      color: colorScheme.errorContainer,
-                      child: Text(
-                        chatState.error!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onErrorContainer,
-                        ),
-                      ),
-                    ),
-
                   Expanded(
-                    child: Container(
-                      color: isDark
-                          ? colorScheme.surface
-                          : colorScheme.surfaceVariant.withOpacity(0.3),
-                      child: Builder(
-                        builder: (context) {
-                          if (chatState.isLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-
-                          if (!hasMessages && !chatState.isSending) {
-                            return _ChatEmptyState(
-                              onStartNewChat: () {
-                                FocusScope.of(context)
-                                    .requestFocus(_inputFocusNode);
-                              },
-                            );
-                          }
-
-                          return ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 16,
-                            ),
-                            itemCount: chatState.messages.length +
-                                (chatState.isSending ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              final messages = chatState.messages;
-
-                              if (chatState.isSending &&
-                                  index == messages.length) {
-                                return const _TypingIndicator();
-                              }
-
-                              final ChatMessage m = messages[index];
-                              final bool isUser = m.role == 'user';
-                              final bool isError = m.isError;
-
-                              return _ChatBubble(
-                                text: m.content,
-                                isUser: isUser,
-                                isError: isError,
-                              );
-                            },
-                          );
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 160),
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _inputFocusNode,
+                        maxLines: null,
+                        minLines: 1,
+                        textInputAction: TextInputAction.newline,
+                        onSubmitted: (_) {
+                          if (!chatState.isSending) _send();
                         },
+                        decoration: InputDecoration(
+                          hintText:
+                              'Frag deinen GPT-Coach oder erzähl, woran du arbeitest …',
+                          filled: true,
+                          fillColor: isDark
+                              ? cs.surfaceContainerHighest
+                              : cs.surfaceContainerHighest.withOpacity(0.9),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-
-                  SafeArea(
-                    top: false,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        border: Border(
-                          top: BorderSide(
-                            color: colorScheme.outlineVariant.withOpacity(0.7),
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxHeight: 140,
-                              ),
-                              child: Scrollbar(
-                                child: TextField(
-                                  controller: _controller,
-                                  focusNode: _inputFocusNode,
-                                  maxLines: null,
-                                  minLines: 1,
-                                  textInputAction: TextInputAction.newline,
-                                  onSubmitted: (_) {
-                                    if (!chatState.isSending) {
-                                      _send();
-                                    }
-                                  },
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        'Frag deinen GPT-Coach oder erzähl, woran du arbeitest …',
-                                    filled: true,
-                                    fillColor: isDark
-                                        ? colorScheme.surfaceVariant
-                                        : colorScheme.surfaceVariant
-                                            .withOpacity(0.9),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton.filled(
-                            onPressed: chatState.isSending ? null : _send,
-                            icon: chatState.isSending
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.send),
-                          ),
-                        ],
-                      ),
-                    ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: chatState.isSending ? null : _send,
+                    icon: chatState.isSending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
                   ),
                 ],
               ),
             ),
-          );
-        },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ChatGPT-style full-width message row
+class _ChatGPTStyleRow extends StatelessWidget {
+  final String text;
+  final bool isUser;
+  final bool isError;
+
+  const _ChatGPTStyleRow({
+    required this.text,
+    required this.isUser,
+    required this.isError,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final Color bg;
+    final Color fg;
+    final IconData icon;
+
+    if (isError) {
+      bg = cs.errorContainer;
+      fg = cs.onErrorContainer;
+      icon = Icons.error_outline_rounded;
+    } else if (isUser) {
+      // user rows: slightly tinted
+      bg = cs.primaryContainer.withOpacity(isDark ? 0.55 : 0.40);
+      fg = cs.onPrimaryContainer;
+      icon = Icons.person_rounded;
+    } else {
+      // assistant rows: subtle neutral
+      bg = isDark
+          ? cs.surfaceContainerHighest.withOpacity(0.45)
+          : cs.surfaceContainerHighest.withOpacity(0.55);
+      fg = cs.onSurface;
+      icon = Icons.auto_awesome_rounded;
+    }
+
+    return Container(
+      width: double.infinity, // ✅ full width
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        // keep text readable on ultra-wide screens
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: cs.outlineVariant.withOpacity(0.55)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 34,
+                  width: 34,
+                  decoration: BoxDecoration(
+                    color: cs.surface.withOpacity(0.55),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: cs.outlineVariant.withOpacity(0.55),
+                    ),
+                  ),
+                  child: Icon(icon, size: 18, color: fg.withOpacity(0.9)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SelectableText(
+                    text,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: fg,
+                      height: 1.45,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatGPTStyleRowTyping extends StatelessWidget {
+  const _ChatGPTStyleRowTyping();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: cs.outlineVariant.withOpacity(0.55)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  height: 34,
+                  width: 34,
+                  decoration: BoxDecoration(
+                    color: cs.surface.withOpacity(0.55),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: cs.outlineVariant.withOpacity(0.55),
+                    ),
+                  ),
+                  child: Icon(Icons.auto_awesome_rounded,
+                      size: 18, color: cs.primary.withOpacity(0.95)),
+                ),
+                const SizedBox(width: 10),
+                _Dot(color: cs.primary),
+                const SizedBox(width: 4),
+                _Dot(color: cs.primary),
+                const SizedBox(width: 4),
+                _Dot(color: cs.primary),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -243,7 +340,7 @@ class _ChatEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
 
     return Center(
       child: Padding(
@@ -251,14 +348,10 @@ class _ChatEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64,
-              color: colorScheme.primary,
-            ),
+            Icon(Icons.chat_bubble_outline, size: 64, color: cs.primary),
             const SizedBox(height: 16),
             Text(
-              'Willkommen beim GPT-Coach',
+              'Willkommen beim GPT-Chat',
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -266,130 +359,16 @@ class _ChatEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Hier kannst du deinen Kopf sortieren, Projekte planen und dich beim Fokussieren unterstützen lassen.',
+              'Schreib einfach los. FocusPilot hilft dir beim Sortieren, Planen und Dranbleiben.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.4,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: onStartNewChat,
               icon: const Icon(Icons.edit),
-              label: const Text('Neuen Chat beginnen'),
+              label: const Text('Loslegen'),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Schreib einfach los – zum Beispiel, woran du gerade arbeitest oder was dich blockiert.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatBubble extends StatelessWidget {
-  final String text;
-  final bool isUser;
-  final bool isError;
-
-  const _ChatBubble({
-    required this.text,
-    required this.isUser,
-    required this.isError,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-
-    final Alignment alignment =
-        isUser ? Alignment.centerRight : Alignment.centerLeft;
-
-    final Color bubbleColor;
-    final Color textColor;
-
-    if (isError) {
-      bubbleColor = colorScheme.errorContainer;
-      textColor = colorScheme.onErrorContainer;
-    } else if (isUser) {
-      bubbleColor = colorScheme.primaryContainer;
-      textColor = colorScheme.onPrimaryContainer;
-    } else {
-      bubbleColor = isDark
-          ? colorScheme.surfaceVariant.withOpacity(0.8)
-          : colorScheme.surfaceVariant;
-      textColor = colorScheme.onSurface;
-    }
-
-    return Align(
-      alignment: alignment,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
-          ),
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 600,
-          ),
-          child: SelectableText(
-            text,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: textColor,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.8),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomRight: Radius.circular(16),
-            bottomLeft: Radius.circular(4),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Dot(color: colorScheme.primary),
-            const SizedBox(width: 4),
-            _Dot(color: colorScheme.primary),
-            const SizedBox(width: 4),
-            _Dot(color: colorScheme.primary),
           ],
         ),
       ),
@@ -399,7 +378,6 @@ class _TypingIndicator extends StatelessWidget {
 
 class _Dot extends StatefulWidget {
   final Color color;
-
   const _Dot({required this.color});
 
   @override
@@ -419,10 +397,7 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
     )..repeat(reverse: true);
 
     _scale = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
 
@@ -439,10 +414,7 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
       child: Container(
         width: 6,
         height: 6,
-        decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
       ),
     );
   }

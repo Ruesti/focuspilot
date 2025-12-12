@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:focuspilot/screens/subscription_page.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'screens/login_page.dart';
 import 'screens/home_screen.dart';
-import 'screens/projects_screen.dart';
-import 'screens/coach_chat_page.dart';      // 👈 NEU
-import 'screens/personality_screen.dart';
-import 'screens/settings_screen.dart';
-import 'widgets/bottom_nav_bar.dart';
+import 'screens/gpt_chat_page.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -18,37 +10,31 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ProjectsScreen(),
-    CoachChatPage(),      // 👈 GPT-Tab = reiner Coaching-Bereich
-    PersonalityScreen(),
-    SettingsScreen(),
-    SubscriptionPage(),
-  ];
-
-  void _onTabTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
+  int _index = 0;
 
   @override
   Widget build(BuildContext context) {
-    final session = Supabase.instance.client.auth.currentSession;
-
-    if (session == null) {
-      return const LoginPage();
-    }
+    final pages = <Widget>[
+      const HomeScreen(),      // ✅ Hier sitzt dein Karussell
+      const GPTChatPage(),     // ✅ Chat
+      const Placeholder(),     // TODO: Journal / Projekte etc.
+    ];
 
     return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: _selectedIndex,
-        onTap: _onTabTapped,
+      body: IndexedStack(
+        index: _index,
+        children: pages,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_rounded), label: 'Chat'),
+          NavigationDestination(icon: Icon(Icons.article_rounded), label: 'Journal'),
+        ],
       ),
     );
   }
 }
+

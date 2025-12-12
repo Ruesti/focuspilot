@@ -96,7 +96,7 @@ class ProjectChatNotifier extends StateNotifier<ProjectChatState> {
         .limit(1);
 
     if (existing.isNotEmpty) {
-      return ChatThread.fromMap(existing.first as Map<String, dynamic>);
+      return ChatThread.fromMap(existing.first);
     }
 
     // Projektname laden (optional, für den Titel)
