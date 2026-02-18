@@ -67,3 +67,6 @@ supabase/functions/**/.tsbuildinfo
 .env
 *.env
 
+git_status.txt
+tree.txt
+
