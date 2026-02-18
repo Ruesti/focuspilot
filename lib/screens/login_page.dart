@@ -75,7 +75,7 @@ Future<void> handleAuth() async {
 
   @override
   Widget build(BuildContext context) {
-    final buttonText = isLogin ? 'Einloggen' : 'Registrieren';
+    //final buttonText = isLogin ? 'Einloggen' : 'Registrieren';
 
     return Scaffold(
       appBar: AppBar(title: const Text('FocusPilot Login')),
