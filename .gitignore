@@ -56,9 +56,12 @@ macos/Podfile.lock
 web/.dart_tool/
 web/.flutter-plugins
 
-# Supabase (lokale Configs)
+# Supabase (nur Cache/Artefakte ignorieren)
 supabase/.temp/
-supabase/functions/.temp/
+supabase/.supabase/
+supabase/functions/**/node_modules/
+supabase/functions/**/.tsbuildinfo
+
 
 # Env files (nicht ins Repo!)
 .env
